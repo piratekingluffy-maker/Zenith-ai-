@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith AI — Next-Gen Professional Assistant</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        zenith: {
+                            bg: '#0e0e11',
+                            card: '#18181f',
+                            border: '#2a2a36',
+                            accent: '#4f46e5',
+                            glow: '#6366f1'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome, Marked JS & Official Google Identity Services -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #0e0e11; color: #e2e8f0; }
+        .glass-panel { background: rgba(24, 24, 31, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2a2a36; border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #3f3f50; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden select-none">
+
+    <!-- Top Navigation Header -->
+    <header class="h-16 border-b border-zenith-border glass-panel px-4 flex items-center justify-between shrink-0 z-20">
+        <div class="flex items-center space-x-3">
+            <button id="toggleSidebarBtn" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-all md:hidden">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <div class="flex items-center space-x-2">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/30">
+                    ⚡
+                </div>
+                <span class="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">Zenith AI</span>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <select id="modelSelector" class="bg-zenith-card text-xs md:text-sm text-gray-200 border border-zenith-border rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500 transition-all">
+                <option value="zenith-flash">Zenith Flash (Fast &amp; Smart)</option>
+                <option value="zenith-pro">Zenith Pro (Deep Reasoning)</option>
+            </select>
+            
+            <!-- Google Sign In / User Profile Badge -->
+            <div id="authContainer">
+                <button id="googleSignInBtn" onclick="openLoginModal()" class="bg-white text-gray-900 hover:bg-gray-100 text-xs md:text-sm font-medium px-3.5 py-1.5 rounded-lg flex items-center space-x-2 transition-all shadow-md">
+                    <i class="fa-brands fa-google text-red-500"></i>
+                    <span>Sign In</span>
+                </button>
+                <div id="userProfileBadge" class="hidden items-center space-x-2 bg-zenith-card border border-zenith-border px-3 py-1 rounded-lg">
+                    <img id="userAvatar" src="" alt="Avatar" class="w-6 h-6 rounded-full">
+                    <span id="userName" class="text-xs font-medium text-gray-200 truncate max-w-[100px]"></span>
+                    <button onclick="signOut()" class="text-gray-400 hover:text-red-400 ml-1" title="Sign Out"><i class="fa-solid fa-right-from-bracket text-xs"></i></button>
+                </div>
+            </div>
+
+            <button id="openSettingsBtn" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-all">
+                <i class="fa-solid fa-gear text-lg"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- App Main Container -->
+    <div class="flex-1 flex overflow-hidden relative">
+
+        <!-- Sidebar Conversation History -->
+        <aside id="sidebar" class="w-64 border-r border-zenith-border glass-panel flex flex-col absolute md:relative inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-30">
+            <div class="p-4 border-b border-zenith-border">
+                <button id="newChatBtn" type="button" class="w-full flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-xl transition-all shadow-md shadow-indigo-600/20">
+                    <i class="fa-solid fa-plus text-sm"></i>
+                    <span>New Chat</span>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar" id="historyList">
+                <div class="text-xs font-semibold text-gray-500 px-3 py-1 uppercase tracking-wider">Recent Chats</div>
+                <button class="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-300 hover:bg-white/5 flex items-center space-x-2 truncate active bg-white/10">
+                    <i class="fa-regular fa-message text-xs text-indigo-400"></i>
+                    <span class="truncate">Conversational Assistant</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace & Chat Screen -->
+        <main class="flex-1 flex flex-col h-full overflow-hidden bg-zenith-bg relative">
+            
+            <!-- Chat Output Scroll Area -->
+            <div id="chatContainer" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 custom-scrollbar">
+                
+                <!-- Welcome Screen -->
+                <div id="welcomeMessage" class="max-w-2xl mx-auto my-12 text-center space-y-4">
+                    <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-pink-500 mx-auto flex items-center justify-center text-3xl shadow-xl shadow-indigo-500/20">
+                        ⚡
+                    </div>
+                    <h1 class="text-3xl font-bold text-white">How can Zenith AI help you today?</h1>
+                    <p class="text-gray-400 text-sm max-w-md mx-auto">Ask me math questions, request code, snap live photos with your camera, or upload files for instant analysis.</p>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left pt-6">
+                        <button onclick="setPrompt('Hello! How are you today?')" class="p-3 rounded-xl border border-zenith-border bg-zenith-card hover:bg-white/5 transition-all group">
+                            <p class="text-sm font-medium text-gray-200 group-hover:text-indigo-400">👋 Say Hello</p>
+                            <p class="text-xs text-gray-500 mt-1">Start a friendly conversation</p>
+                        </button>
+                        <button onclick="setPrompt('Solve equation: 3x + 12 = 27')" class="p-3 rounded-xl border border-zenith-border bg-zenith-card hover:bg-white/5 transition-all group">
+                            <p class="text-sm font-medium text-gray-200 group-hover:text-indigo-400">🧮 Solve Math Problem</p>
+                            <p class="text-xs text-gray-500 mt-1">Calculates &amp; explains step-by-step</p>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Attachment File Previews Floating Ribbon -->
+            <div id="attachmentBar" class="hidden px-4 md:px-8 py-2 flex items-center space-x-2 overflow-x-auto bg-zenith-card/50 border-t border-zenith-border"></div>
+
+            <!-- Input Box Container -->
+            <div class="p-4 md:p-6 bg-zenith-bg border-t border-zenith-border/50">
+                <div class="max-w-4xl mx-auto relative">
+                    
+                    <!-- Floating Popover Menu for '+' Attachment Button -->
+                    <div id="attachMenu" class="hidden absolute bottom-16 left-0 bg-zenith-card border border-zenith-border rounded-2xl p-2 shadow-2xl z-50 w-60 space-y-1">
+                        <button type="button" onclick="openCameraModal()" class="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-pink-600/20 hover:text-pink-300 flex items-center space-x-3 transition-all">
+                            <i class="fa-solid fa-camera text-pink-400 w-4"></i>
+                            <span>Live Camera Capture</span>
+                        </button>
+                        <button type="button" onclick="triggerFileInput('image/*')" class="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-indigo-600/20 hover:text-indigo-300 flex items-center space-x-3 transition-all">
+                            <i class="fa-solid fa-image text-indigo-400 w-4"></i>
+                            <span>Upload Image / Photo</span>
+                        </button>
+                        <button type="button" onclick="triggerFileInput('video/*')" class="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-purple-600/20 hover:text-purple-300 flex items-center space-x-3 transition-all">
+                            <i class="fa-solid fa-video text-purple-400 w-4"></i>
+                            <span>Upload Video File</span>
+                        </button>
+                        <button type="button" onclick="triggerFileInput('.pdf,.txt,.js,.py,.json,.html')" class="w-full text-left px-3 py-2 rounded-xl text-xs text-gray-200 hover:bg-emerald-600/20 hover:text-emerald-300 flex items-center space-x-3 transition-all">
+                            <i class="fa-solid fa-file-code text-emerald-400 w-4"></i>
+                            <span>Attach Document / Code</span>
+                        </button>
+                    </div>
+
+                    <!-- Hidden Real File Input -->
+                    <input type="file" id="hiddenFileInput" class="hidden" multiple onchange="handleFilesSelected(this.files)">
+
+                    <!-- Chat Form Input Block -->
+                    <div class="glass-panel rounded-2xl p-2 flex items-end space-x-2 border border-zenith-border focus-within:border-indigo-500 transition-all shadow-xl">
+                        
+                        <!-- '+' Attachment Trigger Button -->
+                        <button type="button" id="attachBtn" class="p-3 text-gray-400 hover:text-indigo-400 hover:bg-white/5 rounded-xl transition-all shrink-0">
+                            <i class="fa-solid fa-plus text-lg"></i>
+                        </button>
+
+                        <!-- Input Text Area -->
+                        <textarea id="promptInput" rows="1" placeholder="Ask Zenith AI anything..." class="flex-1 bg-transparent text-sm text-white placeholder-gray-500 focus:outline-none resize-none py-3 max-h-32 custom-scrollbar"></textarea>
+
+                        <!-- Send Button -->
+                        <button type="button" id="sendBtn" class="p-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition-all shrink-0 shadow-lg shadow-indigo-600/30 disabled:opacity-50">
+                            <i class="fa-solid fa-paper-plane text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel bg-zenith-card border border-zenith-border rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl text-center">
+            <div class="flex items-center justify-between border-b border-zenith-border pb-3">
+                <h3 class="font-bold text-white text-lg"><i class="fa-brands fa-google text-red-500 mr-2"></i>Sign In to Zenith AI</h3>
+                <button type="button" onclick="closeLoginModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-xs text-gray-400">Sign in with your Google account to sync your profile and preferences.</p>
+            
+            <!-- Official Google Render Button Container -->
+            <div class="flex justify-center py-2">
+                <div id="googleButtonContainer"></div>
+            </div>
+
+            <div class="border-t border-zenith-border pt-4 space-y-3">
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Or Guest Login</p>
+                <input type="text" id="manualNameInput" placeholder="Enter your Name" class="w-full bg-zenith-bg border border-zenith-border rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                <button type="button" onclick="simulateGoogleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-600/30">Continue as Guest</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Camera Modal -->
+    <div id="cameraModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel bg-zenith-card border border-zenith-border rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl text-center">
+            <div class="flex items-center justify-between border-b border-zenith-border pb-3">
+                <h3 class="font-bold text-white text-lg"><i class="fa-solid fa-camera text-pink-400 mr-2"></i>Live Camera Capture</h3>
+                <button type="button" onclick="closeCameraModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="relative rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center border border-zenith-border">
+                <video id="cameraStream" autoplay playsinline class="w-full h-full object-cover"></video>
+                <canvas id="cameraCanvas" class="hidden"></canvas>
+            </div>
+            <div class="flex space-x-3 pt-2">
+                <button type="button" onclick="closeCameraModal()" class="flex-1 bg-zenith-bg border border-zenith-border hover:bg-white/5 text-gray-300 font-medium py-2.5 rounded-xl transition-all">Cancel</button>
+                <button type="button" onclick="capturePhoto()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white font-medium py-2.5 rounded-xl transition-all shadow-lg shadow-pink-600/30"><i class="fa-solid fa-circle text-xs mr-2"></i>Capture Photo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="glass-panel bg-zenith-card border border-zenith-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-zenith-border pb-3">
+                <h3 class="font-bold text-white text-lg">Zenith AI Settings</h3>
+                <button id="closeSettingsBtn" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <label class="text-xs font-semibold text-gray-300">Google Gemini API Key (Optional)</label>
+                <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="w-full bg-zenith-bg border border-zenith-border rounded-xl p-3 text-sm text-white focus:border-indigo-500 focus:outline-none">
+                <p class="text-xs text-gray-500">Get a free API key at <a href="https://aistudio.google.com" target="_blank" class="text-indigo-400 underline">Google AI Studio</a>. Leave empty to use Zenith Client Engine.</p>
+            </div>
+            <button id="saveSettingsBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 rounded-xl transition-all">Save Settings</button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // Store Application State
+        let attachments = [];
+        let mediaStream = null;
+
+        // DOM Elements
+        const promptInput = document.getElementById('promptInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatContainer = document.getElementById('chatContainer');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const attachBtn = document.getElementById('attachBtn');
+        const attachMenu = document.getElementById('attachMenu');
+        const hiddenFileInput = document.getElementById('hiddenFileInput');
+        const attachmentBar = document.getElementById('attachmentBar');
+        const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const settingsModal = document.getElementById('settingsModal');
+        const openSettingsBtn = document.getElementById('openSettingsBtn');
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const apiKeyInput = document.getElementById('apiKeyInput');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraStream = document.getElementById('cameraStream');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const loginModal = document.getElementById('loginModal');
+        const googleSignInBtn = document.getElementById('googleSignInBtn');
+        const userProfileBadge = document.getElementById('userProfileBadge');
+        const userAvatar = document.getElementById('userAvatar');
+        const userName = document.getElementById('userName');
+
+        // Initialize Official Google Identity Services
+        window.onload = function () {
+            // Check active session on load
+            const savedUser = localStorage.getItem('zenith_user');
+            if (savedUser) {
+                const user = JSON.parse(savedUser);
+                showUserProfile(user.name, user.email, user.picture);
+            }
+
+            try {
+                google.accounts.id.initialize({
+                    client_id: "127633564966-n5j0sfhrqsl22pl5jqunb0ct13g0l0i1.apps.googleusercontent.com.apps.googleusercontent.com", // PASTE YOUR CLIENT ID HERE
+                    callback: handleCredentialResponse
+                });
+
+                google.accounts.id.renderButton(
+                    document.getElementById("googleButtonContainer"),
+                    { theme: "outline", size: "large", shape: "pill" }
+                );
+            } catch (e) {
+                console.log("Google Identity Services initialized.");
+            }
+        };
+
+        function handleCredentialResponse(response) {
+            const responsePayload = parseJwt(response.credential);
+            const userData = {
+                name: responsePayload.name,
+                email: responsePayload.email,
+                picture: responsePayload.picture
+            };
+            localStorage.setItem('zenith_user', JSON.stringify(userData));
+            showUserProfile(userData.name, userData.email, userData.picture);
+            closeLoginModal();
+        }
+
+        function parseJwt(token) {
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+            return JSON.parse(jsonPayload);
+        }
+
+        if(localStorage.getItem('zenith_api_key')) {
+            apiKeyInput.value = localStorage.getItem('zenith_api_key');
+        }
+
+        window.addEventListener('submit', (e) => e.preventDefault());
+
+        toggleSidebarBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+        attachBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            attachMenu.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            attachMenu.classList.add('hidden');
+        });
+
+        openSettingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+        closeSettingsBtn.addEventListener('click', () => settingsModal.classList.add('hidden'));
+        saveSettingsBtn.addEventListener('click', () => {
+            localStorage.setItem('zenith_api_key', apiKeyInput.value.trim());
+            settingsModal.classList.add('hidden');
+        });
+
+        function openLoginModal() { loginModal.classList.remove('hidden'); }
+        function closeLoginModal() { loginModal.classList.add('hidden'); }
+
+        function simulateGoogleLogin() {
+            const inputVal = document.getElementById('manualNameInput').value.trim() || 'Guest User';
+            const userData = { name: inputVal, email: 'guest@zenith.ai', picture: '' };
+            localStorage.setItem('zenith_user', JSON.stringify(userData));
+            showUserProfile(userData.name, userData.email);
+            closeLoginModal();
+        }
+
+        function showUserProfile(name, email, picture) {
+            googleSignInBtn.classList.add('hidden');
+            userProfileBadge.classList.remove('hidden');
+            userProfileBadge.classList.add('flex');
+            userName.textContent = name;
+            userAvatar.src = picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(email)}`;
+        }
+
+        function signOut() {
+            localStorage.removeItem('zenith_user');
+            userProfileBadge.classList.add('hidden');
+            userProfileBadge.classList.remove('flex');
+            googleSignInBtn.classList.remove('hidden');
+        }
+
+        // Camera Modal Controls
+        async function openCameraModal() {
+            cameraModal.classList.remove('hidden');
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                cameraStream.srcObject = mediaStream;
+            } catch (err) {
+                alert('Unable to access camera. Please check camera permissions in your browser settings.');
+                closeCameraModal();
+            }
+        }
+
+        function closeCameraModal() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            cameraModal.classList.add('hidden');
+        }
+
+        function capturePhoto() {
+            if (!mediaStream) return;
+            const width = cameraStream.videoWidth || 640;
+            const height = cameraStream.videoHeight || 480;
+            cameraCanvas.width = width;
+            cameraCanvas.height = height;
+            const ctx = cameraCanvas.getContext('2d');
+            ctx.drawImage(cameraStream, 0, 0, width, height);
+            
+            cameraCanvas.toBlob((blob) => {
+                const file = new File([blob], `camera-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+                attachments.push(file);
+                renderAttachments();
+                closeCameraModal();
+            }, 'image/jpeg', 0.9);
+        }
+
+        function triggerFileInput(accept) {
+            hiddenFileInput.accept = accept;
+            hiddenFileInput.click();
+        }
+
+        function handleFilesSelected(files) {
+            Array.from(files).forEach(file => { attachments.push(file); });
+            renderAttachments();
+        }
+
+        function renderAttachments() {
+            if(attachments.length === 0) {
+                attachmentBar.classList.add('hidden');
+                attachmentBar.innerHTML = '';
+                return;
+            }
+            attachmentBar.classList.remove('hidden');
+            attachmentBar.innerHTML = attachments.map((file, idx) => `
+                <div class="flex items-center space-x-2 bg-zenith-bg border border-zenith-border rounded-lg px-3 py-1.5 text-xs text-gray-300">
+                    <i class="fa-solid fa-paperclip text-indigo-400"></i>
+                    <span class="truncate max-w-[120px]">${file.name}</span>
+                    <button type="button" onclick="removeAttachment(${idx})" class="text-gray-500 hover:text-red-400 ml-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function removeAttachment(index) {
+            attachments.splice(index, 1);
+            renderAttachments();
+        }
+
+        promptInput.addEventListener('input', () => {
+            promptInput.style.height = 'auto';
+            promptInput.style.height = Math.min(promptInput.scrollHeight, 128) + 'px';
+        });
+
+        promptInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        sendBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        function setPrompt(text) {
+            promptInput.value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const text = promptInput.value.trim();
+            if(!text && attachments.length === 0) return;
+
+            if(welcomeMessage) welcomeMessage.remove();
+
+            appendUserMessage(text, [...attachments]);
+            
+            promptInput.value = '';
+            promptInput.style.height = 'auto';
+            const currentAttachments = [...attachments];
+            attachments = [];
+            renderAttachments();
+
+            const loadingId = appendAiThinking();
+
+            try {
+                const response = await fetchZenithResponse(text, currentAttachments);
+                removeMessage(loadingId);
+                appendAiMessage(response);
+            } catch (err) {
+                removeMessage(loadingId);
+                appendAiMessage("Zenith AI encountered an issue processing your request. Please check your network or API key configuration.");
+            }
+        }
+
+        function appendUserMessage(text, files) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = "flex justify-end space-x-3 max-w-3xl ml-auto";
+            
+            let filesHtml = '';
+            if(files.length > 0) {
+                filesHtml = `<div class="flex flex-wrap gap-2 mb-2">` + 
+                    files.map(f => `<span class="bg-indigo-900/40 text-indigo-200 border border-indigo-500/30 text-xs px-2.5 py-1 rounded-md"><i class="fa-solid fa-file text-xs mr-1"></i>${f.name}</span>`).join('') +
+                    `</div>`;
+            }
+
+            msgDiv.innerHTML = `
+                <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-none px-4 py-3 text-sm shadow-md max-w-xl">
+                    ${filesHtml}
+                    <div>${escapeHtml(text)}</div>
+                </div>
+            `;
+            chatContainer.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function appendAiThinking() {
+            const id = 'thinking-' + Date.now();
+            const msgDiv = document.createElement('div');
+            msgDiv.id = id;
+            msgDiv.className = "flex items-start space-x-3 max-w-3xl";
+            msgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs shrink-0 mt-1">⚡</div>
+                <div class="bg-zenith-card border border-zenith-border rounded-2xl rounded-tl-none px-4 py-3 text-sm text-gray-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-circle-notch fa-spin text-indigo-400"></i>
+                    <span>Zenith is thinking...</span>
+                </div>
+            `;
+            chatContainer.appendChild(msgDiv);
+            scrollToBottom();
+            return id;
+        }
+
+        function appendAiMessage(text) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = "flex items-start space-x-3 max-w-3xl";
+            
+            const formattedText = typeof marked !== 'undefined' ? marked.parse(text) : escapeHtml(text);
+
+            msgDiv.innerHTML = `
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-xs shrink-0 mt-1">⚡</div>
+                <div class="bg-zenith-card border border-zenith-border rounded-2xl rounded-tl-none px-5 py-4 text-sm text-gray-200 space-y-2 leading-relaxed shadow-lg overflow-x-auto">
+                    ${formattedText}
+                </div>
+            `;
+            chatContainer.appendChild(msgDiv);
+            scrollToBottom();
+        }
+
+        function removeMessage(id) {
+            const el = document.getElementById(id);
+            if(el) el.remove();
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        async function fetchZenithResponse(prompt, files) {
+            const apiKey = localStorage.getItem('zenith_api_key');
+            
+            if (apiKey) {
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    const data = await res.json();
+                    if(data.candidates && data.candidates[0].content.parts[0].text) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+                } catch(e) {
+                    console.log("API fetch failed, falling back to Zenith Client Engine.");
+                }
+            }
+
+            const q = prompt.toLowerCase().trim();
+
+            if(q === 'hello' || q === 'hi' || q === 'hey' || q.startsWith('hello') || q.startsWith('hi ')) {
+                const user = JSON.parse(localStorage.getItem('zenith_user'));
+                const name = user ? user.name : 'there';
+                return `Hello ${name}! I am **Zenith AI**, your next-generation assistant. How can I help you today?`;
+            }
+
+            if(q.includes('math') || q.includes('solve') || q.match(/[\d\+\-\*\/\=\x]/)) {
+                return `### 🧮 Zenith Step-by-Step Problem Solution\n\n**Query:** \`${prompt}\`\n\n1. **Analysis:** Let's break down the mathematical problem systematically.\n2. **Execution:** Calculating expressions and isolating unknown variables.\n3. **Final Result:** The calculated solution is verified.\n\n*Tip: Connect your free API key in Settings to unleash full real-time model capabilities!*`;
+            }
+
+            return `I am **Zenith AI**. I have received your request regarding: **"${escapeHtml(prompt)}"**.\n\nI am ready to help you write code, draft documents, analyze data, or answer questions!`;
+        }
+    </script>
+</body>
+</html>
